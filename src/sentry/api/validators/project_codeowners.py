@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Collection, Mapping, Sequence
-from typing import Any
+from typing import Any, TypedDict
 
 from django.db.models.functions import Lower
 
@@ -17,6 +17,14 @@ from sentry.models.team import Team
 from sentry.users.services.user.service import user_service
 
 
+class CodeOwnersErrors(TypedDict):
+    missing_user_emails: list[str]
+    missing_external_users: list[str]
+    missing_external_teams: list[str]
+    teams_without_access: list[str]
+    users_without_access: list[str]
+
+
 def find_missing_associations(
     parsed_items: Sequence[str],
     associated_items: Collection[str],
@@ -26,7 +34,7 @@ def find_missing_associations(
 
 def build_codeowners_associations(
     codeowners: str, project: Project
-) -> tuple[Mapping[str, Any], Mapping[str, Any]]:
+) -> tuple[Mapping[str, Any], CodeOwnersErrors]:
     """
     Build a dict of {external_name: sentry_name} associations for a raw codeowners file.
     Returns only the actors that exist and have access to the project.
@@ -145,7 +153,7 @@ def build_codeowners_associations(
 
     associations = {**users_dict, **teams_dict, **emails_dict}
 
-    errors = {
+    errors: CodeOwnersErrors = {
         "missing_user_emails": find_missing_associations(emails, user_emails),
         "missing_external_users": find_missing_associations(
             usernames, set(associations.keys()) | users_without_access_external_names
